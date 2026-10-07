@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Clock & Weather Radar Pro - Joinville & Capitais</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            400: '#2dd4bf',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            900: '#134e4a',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        };
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- PWA Metadata & Mobile Optimizations -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Global Clock & Weather Radar Pro HD - Relógio mundial e radar de tempestades ao vivo para Joinville (SC) e capitais mundiais.">
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Leaflet CSS & JS for Interactive Radar Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(51, 65, 85, 0.8);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 116, 139, 1);
+        }
+
+        /* Glassmorphism Panel Styles */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .light .glass-panel {
+            background: rgba(255, 255, 255, 0.88);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.65);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .light .glass-card {
+            background: rgba(241, 245, 249, 0.95);
+            border: 1px solid rgba(0, 0, 0, 0.06);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(20, 184, 166, 0.4);
+            box-shadow: 0 12px 28px -5px rgba(20, 184, 166, 0.18);
+        }
+
+        /* Joinville Neon Glow Effect */
+        .joinville-glow {
+            border: 1.5px solid rgba(59, 130, 246, 0.5);
+            box-shadow: 0 0 25px rgba(59, 130, 246, 0.25);
+            animation: pulse-blue-glow 3s infinite alternate;
+        }
+
+        @keyframes pulse-blue-glow {
+            0% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
+            100% { box-shadow: 0 0 35px rgba(59, 130, 246, 0.5); }
+        }
+
+        .storm-pulse {
+            animation: pulse-red-glow 1.5s infinite alternate;
+        }
+
+        @keyframes pulse-red-glow {
+            0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+            100% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.85); }
+        }
+
+        /* Analog Clock Styling */
+        .clock-face {
+            fill: rgba(15, 23, 42, 0.85);
+            stroke: rgba(148, 163, 184, 0.3);
+            stroke-width: 2;
+        }
+        .light .clock-face {
+            fill: rgba(255, 255, 255, 0.9);
+            stroke: rgba(100, 116, 139, 0.3);
+        }
+        .clock-hand-hour, .clock-hand-minute, .clock-hand-second {
+            stroke-linecap: round;
+        }
+
+        /* Leaflet Dark Map Adjustments */
+        .leaflet-container {
+            background: #090d16 !important;
+            font-family: 'Outfit', sans-serif !important;
+        }
+        .leaflet-popup-content-wrapper {
+            background: rgba(15, 23, 42, 0.95) !important;
+            color: #f8fafc !important;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px !important;
+            box-shadow: 0 20px 30px -5px rgba(0, 0, 0, 0.6) !important;
+        }
+        .leaflet-popup-tip {
+            background: rgba(15, 23, 42, 0.95) !important;
+        }
+
+        /* Weather Radar Color Bar Legend */
+        .radar-legend-bar {
+            background: linear-gradient(to right, 
+                rgba(0,0,0,0) 0%, 
+                #0000ff 20%, 
+                #00a5ff 40%, 
+                #00ff00 55%, 
+                #ffff00 70%, 
+                #ff7800 85%, 
+                #ff0000 95%, 
+                #ff00ff 100%);
+        }
+    </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-teal-500 selection:text-slate-950">
+
+    <header class="sticky top-0 z-40 glass-panel border-b border-slate-800/80 px-4 lg:px-8 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <!-- Logo & Title -->
+            <div class="flex items-center space-x-3 w-full md:w-auto justify-between md:justify-start">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2.5 bg-gradient-to-tr from-teal-500 to-cyan-400 rounded-xl text-slate-950 shadow-lg shadow-teal-500/20 font-bold">
+                        <i class="fa-solid fa-satellite text-xl animate-pulse"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-teal-400 bg-clip-text text-transparent">
+                            Global Clock & Radar <span class="text-xs px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30 ml-1">PRO HD</span>
+                        </h1>
+                        <p class="text-xs text-slate-400 flex items-center gap-1">
+                            <span>Relógio Mundial & Radar HD</span>
+                            <span class="text-blue-400 font-semibold flex items-center gap-1 ml-1"><i class="fa-solid fa-location-dot"></i> Joinville, SC</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Mobile Format & Theme Buttons -->
+                <div class="flex md:hidden items-center gap-2">
+                    <button id="toggleFormatBtnMobile" onclick="toggleTimeFormat()" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 font-mono">
+                        24H
+                    </button>
+                    <button onclick="toggleTheme()" class="p-2 text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- SITE NAVIGATION TABS -->
+            <nav class="flex items-center space-x-1 sm:space-x-2 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 w-full md:w-auto justify-center">
+                <button id="btn-tab-clocks" onclick="switchTab('clocks')" class="tab-btn active px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center gap-2 bg-teal-500 text-slate-950 shadow-lg">
+                    <i class="fa-solid fa-clock"></i>
+                    <span>Relógios & Cidades</span>
+                </button>
+                <button id="btn-tab-radar" onclick="switchTab('radar')" class="tab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center gap-2 bg-slate-800/80 text-slate-300 hover:bg-slate-700">
+                    <i class="fa-solid fa-satellite-dish text-teal-400"></i>
+                    <span>Radar HD ao Vivo</span>
+                </button>
+                <button id="btn-tab-alerts" onclick="switchTab('alerts')" class="tab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center gap-2 bg-slate-800/80 text-slate-300 hover:bg-slate-700">
+                    <i class="fa-solid fa-bolt text-yellow-400"></i>
+                    <span>Alertas SC & Joinville</span>
+                </button>
+            </nav>
+
+            <!-- Desktop Bar Controls -->
+            <div class="hidden md:flex items-center space-x-3">
+                <div class="glass-panel px-3.5 py-1.5 rounded-xl flex items-center space-x-3 border border-slate-700/50">
+                    <i class="fa-solid fa-clock text-teal-400"></i>
+                    <div class="text-left">
+                        <div class="text-[9px] uppercase tracking-wider text-slate-400 font-semibold">Horário Local</div>
+                        <div id="userLocalTime" class="text-xs font-mono font-bold text-teal-300">00:00:00</div>
+                    </div>
+                </div>
+
+                <button id="toggleFormatBtn" onclick="toggleTimeFormat()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-mono font-semibold transition text-slate-200 flex items-center space-x-1">
+                    <i class="fa-solid fa-sliders text-teal-400"></i>
+                    <span id="formatText">Formato: 24H</span>
+                </button>
+
+                <button id="themeToggleBtn" onclick="toggleTheme()" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-amber-400 transition border border-slate-700">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 lg:px-8 py-6">
+
+        <!-- ================= TAB 1: RELÓGIOS & CIDADES ================= -->
+        <div id="tab-clocks" class="tab-content space-y-8">
+            
+            <!-- Joinville Featured Hero Card -->
+            <section class="w-full">
+                <div class="relative overflow-hidden rounded-2xl glass-card joinville-glow p-6 md:p-8 bg-gradient-to-r from-slate-900/95 via-slate-900/90 to-blue-950/70 border border-blue-500/40">
+                    <div class="absolute -right-10 -bottom-10 opacity-10 text-blue-400 pointer-events-none">
+                        <i class="fa-solid fa-cloud-bolt text-[260px]"></i>
+                    </div>
+
+                    <div class="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                        <div class="space-y-3 max-w-2xl">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold border border-blue-500/40 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-blue-400 animate-ping"></span>
+                                    SANTA CATARINA - BRASIL
+                                </span>
+                                <span id="jvlStormStatusBadge" class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30 flex items-center gap-1">
+                                    <i class="fa-solid fa-shield-halved"></i> Radar Ativo
+                                </span>
+                            </div>
+
+                            <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight flex items-center gap-3">
+                                <span>Joinville</span>
+                                <span class="text-lg font-normal text-slate-400">(Norte Catarinense)</span>
+                            </h2>
+
+                            <p class="text-sm text-slate-300 leading-relaxed">
+                                Monitoramento meteorológico em alta resolução da maior cidade de Santa Catarina. Acompanhamento instantâneo do clima, acúmulos pluviométricos e células tempestuosas.
+                            </p>
+
+                            <!-- Live Weather Quick Grid -->
+                            <div id="joinvilleQuickMetrics" class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                                <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+                                    <div class="text-[11px] text-slate-400">Temperatura</div>
+                                    <div id="jvlTemp" class="text-lg font-bold text-white font-mono">-- °C</div>
+                                </div>
+                                <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+                                    <div class="text-[11px] text-slate-400">Sensação</div>
+                                    <div id="jvlFeels" class="text-lg font-bold text-slate-200 font-mono">-- °C</div>
+                                </div>
+                                <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+                                    <div class="text-[11px] text-slate-400">Vento</div>
+                                    <div id="jvlWind" class="text-lg font-bold text-slate-200 font-mono">-- km/h</div>
+                                </div>
+                                <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+                                    <div class="text-[11px] text-slate-400">Chuva / Precipit.</div>
+                                    <div id="jvlPrecip" class="text-lg font-bold text-cyan-400 font-mono">-- mm</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Banner Digital Clock & Action -->
+                        <div class="w-full lg:w-auto flex flex-col items-center sm:items-end justify-center bg-slate-950/70 p-5 rounded-2xl border border-blue-500/30 gap-3">
+                            <div class="text-xs font-semibold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+                                <i class="fa-regular fa-clock"></i> Horário em Joinville (UTC-3)
+                            </div>
+                            <div id="jvlClockDigital" class="text-3xl font-mono font-extrabold text-white tracking-widest">
+                                00:00:00
+                            </div>
+                            <div class="flex items-center gap-2 w-full sm:w-auto">
+                                <button onclick="switchTab('radar'); centerMapOn('joinville')" class="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2 text-sm">
+                                    <i class="fa-solid fa-radar"></i>
+                                    Abrir Radar HD de Joinville
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Search and Filter Bar for World Cities -->
+            <section class="space-y-6">
+                <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 glass-panel p-4 rounded-2xl border border-slate-800">
+                    <div class="relative flex-grow max-w-md">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="searchInput" oninput="filterCities()" placeholder="Buscar capital ou cidade (ex: Joinville, Lisboa, Tóquio...)" 
+                            class="w-full pl-10 pr-4 py-2.5 bg-slate-900/80 text-slate-100 placeholder-slate-500 text-sm rounded-xl border border-slate-700 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition">
+                    </div>
+
+                    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+                        <button onclick="setContinentFilter('all')" class="continent-btn active px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-teal-500 text-slate-950" data-continent="all">
+                            Todos
+                        </button>
+                        <button onclick="setContinentFilter('americas')" class="continent-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-slate-800 text-slate-300 hover:bg-slate-700" data-continent="americas">
+                            Américas & BR
+                        </button>
+                        <button onclick="setContinentFilter('europe')" class="continent-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-slate-800 text-slate-300 hover:bg-slate-700" data-continent="europe">
+                            Europa
+                        </button>
+                        <button onclick="setContinentFilter('asia')" class="continent-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-slate-800 text-slate-300 hover:bg-slate-700" data-continent="asia">
+                            Ásia
+                        </button>
+                        <button onclick="setContinentFilter('africa')" class="continent-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-slate-800 text-slate-300 hover:bg-slate-700" data-continent="africa">
+                            África
+                        </button>
+                        <button onclick="setContinentFilter('oceania')" class="continent-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-slate-800 text-slate-300 hover:bg-slate-700" data-continent="oceania">
+                            Oceania
+                        </button>
+                        <button onclick="setContinentFilter('pinned')" class="continent-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30" data-continent="pinned">
+                            <i class="fa-solid fa-star text-amber-400 mr-1"></i>Favoritos
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cities Grid Container -->
+                <div id="citiesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <!-- Populated via JavaScript -->
+                </div>
+            </section>
+        </div>
+
+        <!-- ================= TAB 2: RADAR METEOROLÓGICO HD AO VIVO ================= -->
+        <div id="tab-radar" class="tab-content hidden space-y-5">
+            <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+                
+                <!-- Radar Header Toolbar -->
+                <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-xl font-extrabold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-satellite-dish text-teal-400 animate-pulse"></i>
+                            Radar Meteorológico Windy HD Instantâneo
+                        </h3>
+                        <p class="text-xs text-slate-400">Varredura de precipitação em tempo real e de alta precisão via tecnologia Windy</p>
+                    </div>
+
+                    <!-- Quick Location Jumps -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-xs text-slate-400 font-semibold mr-1">Focar Região:</span>
+                        <button onclick="centerMapOn('joinville')" class="px-3 py-1.5 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 font-bold rounded-xl text-xs border border-blue-500/40 transition flex items-center gap-1">
+                            <i class="fa-solid fa-location-crosshairs"></i> Joinville
+                        </button>
+                        <button onclick="centerMapOn('florianopolis')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-teal-300 font-semibold rounded-xl text-xs border border-slate-700 transition">
+                            Florianópolis
+                        </button>
+                        <button onclick="centerMapOn('curitiba')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-teal-300 font-semibold rounded-xl text-xs border border-slate-700 transition">
+                            Curitiba
+                        </button>
+                        <button onclick="centerMapOn('sao_paulo')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-teal-300 font-semibold rounded-xl text-xs border border-slate-700 transition">
+                            São Paulo
+                        </button>
+                        <button onclick="centerMapOn('brasilia')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 font-semibold rounded-xl text-xs border border-slate-700 transition">
+                            Brasília
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Layer Switcher Bar -->
+                <div class="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-900/90 rounded-xl border border-slate-800 text-xs">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-slate-400 font-semibold"><i class="fa-solid fa-layer-group text-teal-400 mr-1"></i>Camadas Windy:</span>
+                        <button id="layer-btn-radar" onclick="changeWindyOverlay('radar')" class="windy-layer-btn px-3 py-1.5 rounded-lg bg-teal-500 text-slate-950 font-bold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-cloud-bolt"></i> Radar de Chuva
+                        </button>
+                        <button id="layer-btn-rain" onclick="changeWindyOverlay('rain')" class="windy-layer-btn px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-cloud-showers-heavy"></i> Acúmulo & Raios
+                        </button>
+                        <button id="layer-btn-clouds" onclick="changeWindyOverlay('clouds')" class="windy-layer-btn px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-cloud"></i> Satélite & Nuvens
+                        </button>
+                        <button id="layer-btn-wind" onclick="changeWindyOverlay('wind')" class="windy-layer-btn px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-wind"></i> Ventos
+                        </button>
+                    </div>
+
+                    <div id="windyCurrentLocationLabel" class="text-xs text-teal-300 font-mono font-semibold flex items-center gap-1">
+                        <i class="fa-solid fa-location-dot"></i> Joinville, SC (-26.30°, -48.85°)
+                    </div>
+                </div>
+
+                <!-- Main Radar Map Windy Container -->
+                <div class="relative w-full h-[580px] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950">
+                    <iframe id="windyIframe" 
+                        class="w-full h-full border-0 rounded-2xl"
+                        src="https://embed.windy.com/embed.html?lat=-26.3045&lon=-48.8487&detailLat=-26.3045&detailLon=-48.8487&width=650&height=450&zoom=9&level=surface&overlay=radar&product=radar&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
+                        allow="geolocation">
+                    </iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 3: CENTRAL DE ALERTAS & TEMPESTADES JOINVILLE ================= -->
+        <div id="tab-alerts" class="tab-content hidden space-y-6">
+            
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-6">
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold border border-rose-500/30">
+                                MONITORAMENTO CONVECTIVO
+                            </span>
+                            <span class="text-xs text-slate-400">Norte de Santa Catarina</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-cloud-bolt text-amber-400"></i>
+                            Central de Alertas de Chuva, Granizo e Raios
+                        </h3>
+                    </div>
+
+                    <button onclick="loadJoinvilleBannerWeather()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-teal-300 font-bold rounded-xl text-xs border border-slate-700 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-rotate text-teal-400"></i> Atualizar Telemetria
+                    </button>
+                </div>
+
+                <!-- 3 Major Threat Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    
+                    <!-- Chuva & Acúmulo -->
+                    <div class="glass-card p-5 rounded-2xl border border-blue-500/30 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-cloud-showers-heavy text-lg"></i> Precipitação / Chuva
+                            </span>
+                            <span id="tabRainStatusBadge" class="px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-bold">
+                                Estável
+                            </span>
+                        </div>
+                        <div class="text-3xl font-extrabold font-mono text-white" id="tabRainValue">
+                            0.0 mm/h
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed" id="tabRainDesc">
+                            Varreduras pluviométricas em tempo real sem indícios de alagamentos imediatos.
+                        </p>
+                    </div>
+
+                    <!-- Granizo (Hail) -->
+                    <div class="glass-card p-5 rounded-2xl border border-sky-500/30 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-sky-300 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-cubes-stacked text-lg"></i> Detecção de Granizo
+                            </span>
+                            <span id="tabHailStatusBadge" class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
+                                Nulo
+                            </span>
+                        </div>
+                        <div class="text-3xl font-extrabold font-mono text-emerald-400" id="tabHailValue">
+                            Ausente
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed" id="tabHailDesc">
+                            Sem detecção de refletividade severa superior a 55 dBZ associada a granizo.
+                        </p>
+                    </div>
+
+                    <!-- Raios & Relâmpagos -->
+                    <div class="glass-card p-5 rounded-2xl border border-yellow-500/30 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-yellow-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-bolt text-lg"></i> Raios & Descargas
+                            </span>
+                            <span id="tabLightningStatusBadge" class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
+                                Normal
+                            </span>
+                        </div>
+                        <div class="text-3xl font-extrabold font-mono text-white" id="tabLightningValue">
+                            0 na região
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed" id="tabLightningDesc">
+                            Monitoramento magnético/óptico sem atividade de descargas elétricas nuvem-solo.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Detailed Joinville Radar Telemetry Note -->
+                <div id="tabAdvisoryFullBox" class="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
+                    <h4 class="text-sm font-bold text-teal-300 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info"></i> Nota Informativa Meteorológica de Joinville
+                    </h4>
+                    <p id="tabAdvisoryFullText" class="text-xs text-slate-300 leading-relaxed">
+                        A posição geográfica de Joinville entre a Serra do Mar e a Baía da Babitonga favorece instabilidades orográficas. Nosso sistema de radar RainViewer HD analisa constantemente os ecos de refletividade para emitir alertas precoces de pancadas de chuva e tempestades.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="cityDetailModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300">
+        <div id="modalContainer" class="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto glass-panel rounded-3xl border border-slate-700/80 shadow-2xl p-6 sm:p-8 space-y-6 transform scale-95 transition-transform duration-300">
+            
+            <button onclick="closeCityModal()" class="absolute top-5 right-5 p-2 rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <!-- Modal Header -->
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+                <div class="flex items-center space-x-3">
+                    <span id="modalFlag" class="text-4xl">🇧🇷</span>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 id="modalCityName" class="text-2xl font-bold text-white">Joinville</h3>
+                            <button id="modalPinBtn" onclick="togglePinCurrentModal()" class="text-slate-400 hover:text-amber-400 text-lg">
+                                <i class="fa-regular fa-star"></i>
+                            </button>
+                        </div>
+                        <p id="modalCountryContinent" class="text-xs text-slate-400">Santa Catarina, Brasil • América do Sul</p>
+                    </div>
+                </div>
+
+                <div class="text-left sm:text-right">
+                    <div id="modalDigitalClock" class="text-2xl font-mono font-bold text-teal-300">00:00:00</div>
+                    <div id="modalTimezoneOffset" class="text-xs text-slate-400">Fuso Horário: UTC-3</div>
+                </div>
+            </div>
+
+            <!-- STORM & SEVERE WEATHER MONITOR PANEL IN MODAL -->
+            <div id="stormMonitorPanel" class="p-5 rounded-2xl border transition-all duration-300 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <div id="stormIconBox" class="p-2.5 rounded-xl text-white font-bold text-lg">
+                            <i id="stormMainIcon" class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-base font-bold text-white flex items-center gap-2">
+                                Monitor de Tempestades na Região
+                            </h4>
+                            <p id="stormSubtitle" class="text-xs text-slate-300">Análise de radar e parâmetros convectivos locais</p>
+                        </div>
+                    </div>
+
+                    <span id="stormRiskBadge" class="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider">
+                        BAIXO RISCO
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-center space-y-1">
+                        <div class="text-slate-400 text-xs font-semibold flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-cloud-showers-heavy text-blue-400"></i> Chuva
+                        </div>
+                        <div id="rainStatusText" class="text-sm font-bold text-slate-200">Sem Chuva</div>
+                        <div id="rainDetailVal" class="text-[11px] font-mono text-slate-400">0.0 mm/h</div>
+                    </div>
+
+                    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-center space-y-1">
+                        <div class="text-slate-400 text-xs font-semibold flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-cubes-stacked text-sky-300"></i> Granizo
+                        </div>
+                        <div id="hailStatusText" class="text-sm font-bold text-emerald-400">Nenhum</div>
+                        <div id="hailRiskLevel" class="text-[11px] font-mono text-slate-400">Risco nulo</div>
+                    </div>
+
+                    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-center space-y-1">
+                        <div class="text-slate-400 text-xs font-semibold flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-bolt text-yellow-400"></i> Raios
+                        </div>
+                        <div id="lightningStatusText" class="text-sm font-bold text-emerald-400">Ausente</div>
+                        <div id="lightningActivityVal" class="text-[11px] font-mono text-slate-400">0 descargas</div>
+                    </div>
+                </div>
+
+                <div id="stormAdvisoryText" class="text-xs p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-300 leading-relaxed">
+                    Condições meteorológicas estáveis na região. Sem registro de células tempestuosas severas nas últimas varreduras.
+                </div>
+            </div>
+
+            <!-- Current Detailed Metrics Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="bg-slate-900/60 p-3.5 rounded-2xl border border-slate-800">
+                    <div class="text-xs text-slate-400 mb-1 flex items-center gap-1"><i class="fa-solid fa-temperature-three-quarters text-rose-400"></i> Temperatura</div>
+                    <div id="modalTemp" class="text-xl font-bold font-mono text-white">-- °C</div>
+                </div>
+                <div class="bg-slate-900/60 p-3.5 rounded-2xl border border-slate-800">
+                    <div class="text-xs text-slate-400 mb-1 flex items-center gap-1"><i class="fa-solid fa-droplet text-cyan-400"></i> Umidade</div>
+                    <div id="modalHumidity" class="text-xl font-bold font-mono text-white">-- %</div>
+                </div>
+                <div class="bg-slate-900/60 p-3.5 rounded-2xl border border-slate-800">
+                    <div class="text-xs text-slate-400 mb-1 flex items-center gap-1"><i class="fa-solid fa-wind text-teal-400"></i> Vento Max</div>
+                    <div id="modalWind" class="text-xl font-bold font-mono text-white">-- km/h</div>
+                </div>
+                <div class="bg-slate-900/60 p-3.5 rounded-2xl border border-slate-800">
+                    <div class="text-xs text-slate-400 mb-1 flex items-center gap-1"><i class="fa-solid fa-gauge-high text-amber-400"></i> Pressão</div>
+                    <div id="modalPressure" class="text-xl font-bold font-mono text-white">-- hPa</div>
+                </div>
+            </div>
+
+            <!-- Mini Local Radar Map Zoomed on Modal City -->
+            <div class="space-y-2">
+                <h4 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-map-location-dot text-teal-400"></i> Mini Radar da Região (<span id="modalMiniMapTitle">Joinville</span>)
+                </h4>
+                <div class="relative w-full h-[220px] rounded-2xl overflow-hidden border border-slate-800">
+                    <div id="modalMiniMap" class="w-full h-full"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-auto border-t border-slate-800/80 py-6 px-4 lg:px-8 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div>
+                © 2026 <strong>Global Clock & Weather Radar Pro HD</strong> — Especial Joinville, SC & Capitais Mundiais.
+            </div>
+            <div class="flex items-center space-x-4">
+                <span><i class="fa-solid fa-satellite text-teal-400"></i> RainViewer HD Radar API</span>
+                <span><i class="fa-solid fa-cloud text-blue-400"></i> Open-Meteo Weather API</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Global Application State
+        let is24HourFormat = true;
+        let activeContinentFilter = 'all';
+        let pinnedCities = JSON.parse(localStorage.getItem('pinned_cities') || '["joinville", "florianopolis", "brasilia"]');
+        let currentModalCityId = null;
+
+        // Windy State Variables
+        let currentWindyLat = -26.3045;
+        let currentWindyLng = -48.8487;
+        let currentWindyZoom = 9;
+        let currentWindyOverlay = 'radar';
+
+        // Leaflet Mini Map Variables
+        let modalMiniMap = null;
+
+        // Cities Dataset (Capitals + Joinville SC Highlight)
+        const CITIES_DATA = [
+            {
+                id: 'joinville',
+                name: 'Joinville',
+                country: 'Brasil (Santa Catarina)',
+                continent: 'americas',
+                timezone: 'America/Sao_Paulo',
+                lat: -26.3045,
+                lng: -48.8487,
+                flag: '🇧🇷',
+                isHighlight: true
+            },
+            {
+                id: 'florianopolis',
+                name: 'Florianópolis',
+                country: 'Brasil (Capital SC)',
+                continent: 'americas',
+                timezone: 'America/Sao_Paulo',
+                lat: -27.5954,
+                lng: -48.5480,
+                flag: '🇧🇷'
+            },
+            {
+                id: 'curitiba',
+                name: 'Curitiba',
+                country: 'Brasil (Paraná)',
+                continent: 'americas',
+                timezone: 'America/Sao_Paulo',
+                lat: -25.4284,
+                lng: -49.2733,
+                flag: '🇧🇷'
+            },
+            {
+                id: 'sao_paulo',
+                name: 'São Paulo',
+                country: 'Brasil',
+                continent: 'americas',
+                timezone: 'America/Sao_Paulo',
+                lat: -23.5505,
+                lng: -46.6333,
+                flag: '🇧🇷'
+            },
+            {
+                id: 'brasilia',
+                name: 'Brasília',
+                country: 'Brasil',
+                continent: 'americas',
+                timezone: 'America/Sao_Paulo',
+                lat: -15.7975,
+                lng: -47.8919,
+                flag: '🇧🇷'
+            },
+            {
+                id: 'buenos_aires',
+                name: 'Buenos Aires',
+                country: 'Argentina',
+                continent: 'americas',
+                timezone: 'America/Argentina/Buenos_Aires',
+                lat: -34.6037,
+                lng: -58.3816,
+                flag: '🇦🇷'
+            },
+            {
+                id: 'washington',
+                name: 'Washington, D.C.',
+                country: 'EUA',
+                continent: 'americas',
+                timezone: 'America/New_York',
+                lat: 38.9072,
+                lng: -77.0369,
+                flag: '🇺🇸'
+            },
+            {
+                id: 'mexico_city',
+                name: 'Cidade do México',
+                country: 'México',
+                continent: 'americas',
+                timezone: 'America/Mexico_City',
+                lat: 19.4326,
+                lng: -99.1332,
+                flag: '🇲🇽'
+            },
+            {
+                id: 'london',
+                name: 'Londres',
+                country: 'Reino Unido',
+                continent: 'europe',
+                timezone: 'Europe/London',
+                lat: 51.5074,
+                lng: -0.1278,
+                flag: '🇬🇧'
+            },
+            {
+                id: 'paris',
+                name: 'Paris',
+                country: 'França',
+                continent: 'europe',
+                timezone: 'Europe/Paris',
+                lat: 48.8566,
+                lng: 2.3522,
+                flag: '🇫🇷'
+            },
+            {
+                id: 'berlin',
+                name: 'Berlim',
+                country: 'Alemanha',
+                continent: 'europe',
+                timezone: 'Europe/Berlin',
+                lat: 52.5200,
+                lng: 13.4050,
+                flag: '🇩🇪'
+            },
+            {
+                id: 'madrid',
+                name: 'Madrid',
+                country: 'Espanha',
+                continent: 'europe',
+                timezone: 'Europe/Madrid',
+                lat: 40.4168,
+                lng: -3.7038,
+                flag: '🇪🇸'
+            },
+            {
+                id: 'lisbon',
+                name: 'Lisboa',
+                country: 'Portugal',
+                continent: 'europe',
+                timezone: 'Europe/Lisbon',
+                lat: 38.7223,
+                lng: -9.1393,
+                flag: '🇵🇹'
+            },
+            {
+                id: 'tokyo',
+                name: 'Tóquio',
+                country: 'Japão',
+                continent: 'asia',
+                timezone: 'Asia/Tokyo',
+                lat: 35.6762,
+                lng: 139.6503,
+                flag: '🇯🇵'
+            },
+            {
+                id: 'beijing',
+                name: 'Pequim',
+                country: 'China',
+                continent: 'asia',
+                timezone: 'Asia/Shanghai',
+                lat: 39.9042,
+                lng: 116.4074,
+                flag: '🇨🇳'
+            },
+            {
+                id: 'cairo',
+                name: 'Cairo',
+                country: 'Egito',
+                continent: 'africa',
+                timezone: 'Africa/Cairo',
+                lat: 30.0444,
+                lng: 31.2357,
+                flag: '🇪🇬'
+            },
+            {
+                id: 'canberra',
+                name: 'Camberra',
+                country: 'Austrália',
+                continent: 'oceania',
+                timezone: 'Australia/Canberra',
+                lat: -35.2809,
+                lng: 149.1300,
+                flag: '🇦🇺'
+            }
+        ];
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-teal-500', 'text-slate-950', 'shadow-lg');
+                btn.classList.add('bg-slate-800/80', 'text-slate-300', 'hover:bg-slate-700');
+            });
+
+            const targetTab = document.getElementById(`tab-${tabId}`);
+            if (targetTab) targetTab.classList.remove('hidden');
+
+            const activeBtn = document.getElementById(`btn-tab-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-slate-800/80', 'text-slate-300', 'hover:bg-slate-700');
+                activeBtn.classList.add('bg-teal-500', 'text-slate-950', 'shadow-lg');
+            }
+        }
+
+        function buildWindyUrl(lat, lng, zoom, overlay) {
+            return `https://embed.windy.com/embed.html?lat=${lat}&lon=${lng}&detailLat=${lat}&detailLon=${lng}&width=650&height=450&zoom=${zoom}&level=surface&overlay=${overlay}&product=${overlay === 'radar' ? 'radar' : 'ecmwf'}&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1`;
+        }
+
+        function updateWindyIframe() {
+            const iframe = document.getElementById('windyIframe');
+            if (iframe) {
+                iframe.src = buildWindyUrl(currentWindyLat, currentWindyLng, currentWindyZoom, currentWindyOverlay);
+            }
+        }
+
+        function changeWindyOverlay(overlay) {
+            currentWindyOverlay = overlay;
+            document.querySelectorAll('.windy-layer-btn').forEach(btn => {
+                btn.className = 'windy-layer-btn px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5';
+            });
+            
+            const activeBtn = document.getElementById(`layer-btn-${overlay}`);
+            if (activeBtn) {
+                activeBtn.className = 'windy-layer-btn px-3 py-1.5 rounded-lg bg-teal-500 text-slate-950 font-bold transition flex items-center gap-1.5';
+            }
+
+            updateWindyIframe();
+        }
+
+        function centerMapOn(cityId) {
+            const city = CITIES_DATA.find(c => c.id === cityId);
+            if (city) {
+                currentWindyLat = city.lat;
+                currentWindyLng = city.lng;
+                currentWindyZoom = city.id === 'joinville' ? 9 : 8;
+
+                const label = document.getElementById('windyCurrentLocationLabel');
+                if (label) {
+                    label.innerHTML = `<i class="fa-solid fa-location-dot"></i> ${city.name} (${city.lat.toFixed(2)}°, ${city.lng.toFixed(2)}°)`;
+                }
+
+                updateWindyIframe();
+            }
+        }
+
+        function getTimeDataForZone(timezone) {
+            const now = new Date();
+            
+            const formatter = new Intl.DateTimeFormat('pt-BR', {
+                timeZone: timezone,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: !is24HourFormat
+            });
+
+            const parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: timezone,
+                hour: 'numeric',
+                minute: 'numeric',
+                second: 'numeric',
+                hour12: false
+            }).formatToParts(now);
+
+            let hours = 0, minutes = 0, seconds = 0;
+            parts.forEach(p => {
+                if (p.type === 'hour') hours = parseInt(p.value, 10);
+                if (p.type === 'minute') minutes = parseInt(p.value, 10);
+                if (p.type === 'second') seconds = parseInt(p.value, 10);
+            });
+
+            const isDay = hours >= 6 && hours < 18;
+
+            const targetDateStr = now.toLocaleString('en-US', { timeZone: timezone });
+            const targetDate = new Date(targetDateStr);
+            const diffMs = targetDate - now;
+            const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+            const relOffsetStr = diffHours === 0 ? 'Mesmo horário' : (diffHours > 0 ? `+${diffHours}h` : `${diffHours}h`);
+
+            return {
+                digitalText: formatter.format(now),
+                hours,
+                minutes,
+                seconds,
+                isDay,
+                relOffsetStr
+            };
+        }
+
+        function generateAnalogClockSVG(hours, minutes, seconds) {
+            const secAngle = seconds * 6;
+            const minAngle = (minutes + seconds / 60) * 6;
+            const hourAngle = ((hours % 12) + minutes / 60) * 30;
+
+            return `
+                <svg viewBox="0 0 100 100" class="w-12 h-12">
+                    <circle cx="50" cy="50" r="45" class="clock-face" />
+                    <line x1="50" y1="50" x2="50" y2="28" stroke="currentColor" stroke-width="3.5" class="clock-hand-hour text-teal-400" transform="rotate(${hourAngle} 50 50)" />
+                    <line x1="50" y1="50" x2="50" y2="18" stroke="currentColor" stroke-width="2.5" class="clock-hand-minute text-slate-200" transform="rotate(${minAngle} 50 50)" />
+                    <line x1="50" y1="50" x2="50" y2="14" stroke="currentColor" stroke-width="1.5" class="clock-hand-second text-rose-500" transform="rotate(${secAngle} 50 50)" />
+                    <circle cx="50" cy="50" r="3" class="fill-rose-500" />
+                </svg>
+            `;
+        }
+
+        function renderCitiesGrid() {
+            const grid = document.getElementById('citiesGrid');
+            if (!grid) return;
+
+            const searchVal = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase().trim() : '';
+
+            const filtered = CITIES_DATA.filter(city => {
+                const matchesSearch = city.name.toLowerCase().includes(searchVal) || city.country.toLowerCase().includes(searchVal);
+                if (!matchesSearch) return false;
+
+                if (activeContinentFilter === 'all') return true;
+                if (activeContinentFilter === 'pinned') return pinnedCities.includes(city.id);
+                return city.continent === activeContinentFilter;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-12 text-center text-slate-500 glass-card rounded-2xl">
+                        <i class="fa-solid fa-compass-slash text-4xl mb-3 text-slate-600"></i>
+                        <p class="text-sm">Nenhuma cidade encontrada para este filtro ou busca.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(city => {
+                const timeData = getTimeDataForZone(city.timezone);
+                const isPinned = pinnedCities.includes(city.id);
+                const isHighlight = city.id === 'joinville';
+
+                return `
+                    <div class="glass-card rounded-2xl p-5 relative flex flex-col justify-between ${isHighlight ? 'border-2 border-blue-500/50 bg-gradient-to-b from-slate-900/90 to-blue-950/40' : ''}">
+                        
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-2xl">${city.flag}</span>
+                                    <div>
+                                        <h4 class="font-extrabold text-white text-base leading-tight flex items-center gap-1.5">
+                                            ${city.name}
+                                            ${isHighlight ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-blue-500 text-white font-bold">SC</span>' : ''}
+                                        </h4>
+                                        <span class="text-[11px] text-slate-400 block">${city.country}</span>
+                                    </div>
+                                </div>
+
+                                <button onclick="togglePinCity('${city.id}')" class="p-1.5 text-slate-400 hover:text-amber-400 transition">
+                                    <i class="${isPinned ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star'} text-base"></i>
+                                </button>
+                            </div>
+
+                            <div class="flex items-center justify-between my-4 bg-slate-950/40 p-3 rounded-xl border border-slate-800/60">
+                                <div>
+                                    <div class="text-2xl font-mono font-bold text-teal-300 tracking-wider" id="clock-digital-${city.id}">
+                                        ${timeData.digitalText}
+                                    </div>
+                                    <div class="flex items-center space-x-2 mt-1">
+                                        <span class="text-[10px] px-2 py-0.5 rounded-full ${timeData.isDay ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'} flex items-center gap-1">
+                                            <i class="fa-solid ${timeData.isDay ? 'fa-sun' : 'fa-moon'}"></i>
+                                            ${timeData.isDay ? 'Dia' : 'Noite'}
+                                        </span>
+                                        <span class="text-[10px] text-slate-400 font-mono">${timeData.relOffsetStr}</span>
+                                    </div>
+                                </div>
+
+                                <div id="clock-svg-${city.id}">
+                                    ${generateAnalogClockSVG(timeData.hours, timeData.minutes, timeData.seconds)}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 flex items-center justify-between gap-2 border-t border-slate-800/50">
+                            <span class="text-[11px] text-slate-500 flex items-center gap-1">
+                                <i class="fa-solid fa-location-crosshairs text-teal-500"></i> ${city.lat.toFixed(2)}°, ${city.lng.toFixed(2)}°
+                            </span>
+                            <button onclick="openCityModal('${city.id}')" class="px-3 py-1.5 bg-slate-800 hover:bg-teal-600 hover:text-slate-950 text-teal-300 font-bold rounded-xl text-xs transition border border-teal-500/30 flex items-center gap-1">
+                                Ver Clima & Radar
+                                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function tickClocks() {
+            const userClock = document.getElementById('userLocalTime');
+            if (userClock) {
+                userClock.innerText = new Intl.DateTimeFormat('pt-BR', {
+                    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: !is24HourFormat
+                }).format(new Date());
+            }
+
+            const jvlClock = document.getElementById('jvlClockDigital');
+            if (jvlClock) {
+                const jvlData = getTimeDataForZone('America/Sao_Paulo');
+                jvlClock.innerText = jvlData.digitalText;
+            }
+
+            CITIES_DATA.forEach(city => {
+                const digitalElem = document.getElementById(`clock-digital-${city.id}`);
+                const svgElem = document.getElementById(`clock-svg-${city.id}`);
+                
+                if (digitalElem || svgElem) {
+                    const data = getTimeDataForZone(city.timezone);
+                    if (digitalElem) digitalElem.innerText = data.digitalText;
+                    if (svgElem) svgElem.innerHTML = generateAnalogClockSVG(data.hours, data.minutes, data.seconds);
+                }
+            });
+
+            if (currentModalCityId) {
+                const city = CITIES_DATA.find(c => c.id === currentModalCityId);
+                if (city) {
+                    const data = getTimeDataForZone(city.timezone);
+                    const modalClock = document.getElementById('modalDigitalClock');
+                    if (modalClock) modalClock.innerText = data.digitalText;
+                }
+            }
+        }
+
+        function initMainRadarMap() {
+            if (typeof L === 'undefined') {
+                setTimeout(initMainRadarMap, 300);
+                return;
+            }
+
+            const mapContainer = document.getElementById('radarMap');
+            if (!mapContainer) return;
+
+            // Focus initially on Joinville, SC
+            mainMap = L.map('radarMap', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([-26.3045, -48.8487], 7);
+
+            // Set default dark tile base map
+            baseTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                subdomains: 'abcd'
+            }).addTo(mainMap);
+
+            L.control.zoom({ position: 'topright' }).addTo(mainMap);
+
+            // Add markers
+            CITIES_DATA.forEach(city => {
+                const isHighlight = city.id === 'joinville';
+                const customIcon = L.divIcon({
+                    className: 'custom-map-pin',
+                    html: `
+                        <div class="relative flex items-center justify-center">
+                            <span class="absolute w-5 h-5 rounded-full ${isHighlight ? 'bg-blue-500 animate-ping opacity-80' : 'bg-teal-400 opacity-50'}"></span>
+                            <div class="w-4 h-4 rounded-full ${isHighlight ? 'bg-blue-500 border-2 border-white' : 'bg-teal-400 border border-slate-900'} shadow-xl"></div>
+                        </div>
+                    `,
+                    iconSize: [22, 22]
+                });
+
+                const marker = L.marker([city.lat, city.lng], { icon: customIcon }).addTo(mainMap);
+                
+                marker.bindPopup(`
+                    <div class="p-1.5 space-y-2">
+                        <div class="font-extrabold text-sm text-white flex items-center gap-1.5">
+                            <span>${city.flag}</span> ${city.name}
+                        </div>
+                        <div class="text-xs text-slate-300">
+                            Lat: ${city.lat.toFixed(2)}° | Lng: ${city.lng.toFixed(2)}°
+                        </div>
+                        <button onclick="openCityModal('${city.id}')" class="w-full mt-2 py-1.5 px-3 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-lg text-xs transition">
+                            Ver Clima & Radar Detalhado
+                        </button>
+                    </div>
+                `);
+
+                mainMapMarkers[city.id] = marker;
+            });
+
+            fetchRadarFrames();
+        }
+
+        function changeMapBaseTile(tileType) {
+            if (!mainMap) return;
+            activeTileType = tileType;
+
+            if (baseTileLayer) mainMap.removeLayer(baseTileLayer);
+
+            if (tileType === 'satellite') {
+                baseTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 18,
+                    attribution: 'Esri World Imagery'
+                });
+            } else if (tileType === 'terrain') {
+                baseTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 18,
+                    attribution: 'OpenStreetMap'
+                });
+            } else { // dark
+                baseTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    maxZoom: 19,
+                    subdomains: 'abcd'
+                });
+            }
+
+            baseTileLayer.addTo(mainMap);
+        }
+
+        async function fetchRadarFrames() {
+            try {
+                const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+                const data = await res.json();
+                
+                if (data && data.radar && data.radar.past) {
+                    const host = data.host;
+                    const frames = [...data.radar.past, ...(data.radar.nowcast || [])];
+                    radarTimestamps = frames;
+
+                    radarTileLayers.forEach(l => mainMap.removeLayer(l));
+                    radarTileLayers = [];
+
+                    // Load HD 512px Tiles from RainViewer API (Smooth = 1, Snow = 1)
+                    frames.forEach(frame => {
+                        const tileLayer = L.tileLayer(`${host}${frame.path}/512/{z}/{x}/{y}/${selectedColorPalette}/1_1.png`, {
+                            tileSize: 512,
+                            zoomOffset: -1,
+                            opacity: 0,
+                            zIndex: 200,
+                            attribution: 'RainViewer HD Radar'
+                        });
+                        radarTileLayers.push(tileLayer);
+                    });
+
+                    radarTileLayers.forEach(l => l.addTo(mainMap));
+
+                    const slider = document.getElementById('radarFrameSlider');
+                    if (slider) {
+                        slider.max = frames.length - 1;
+                        slider.value = frames.length - 1;
+                    }
+
+                    showRadarFrame(frames.length - 1);
+                }
+            } catch (err) {
+                console.warn('RainViewer Radar HD load notice.', err);
+                const label = document.getElementById('radarTimestampLabel');
+                if (label) label.innerText = 'Radar HD em tempo real ativo';
+            }
+        }
+
+        function showRadarFrame(index) {
+            if (!radarTileLayers.length || !radarTimestamps[index]) return;
+
+            currentFrameIndex = index;
+            radarTileLayers.forEach((layer, i) => {
+                layer.setOpacity(i === index ? radarOpacity : 0);
+            });
+
+            const frameTime = new Date(radarTimestamps[index].time * 1000);
+            const timeStr = frameTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const label = document.getElementById('radarTimestampLabel');
+            if (label) label.innerText = `Varredura HD: ${timeStr} (Horário Local)`;
+            
+            const slider = document.getElementById('radarFrameSlider');
+            if (slider) slider.value = index;
+        }
+
+        function toggleRadarPlay() {
+            isRadarPlaying = !isRadarPlaying;
+            const playIcon = document.getElementById('radarPlayIcon');
+            const playText = document.getElementById('radarPlayText');
+
+            if (isRadarPlaying) {
+                if (playIcon) playIcon.className = 'fa-solid fa-pause';
+                if (playText) playText.innerText = 'Pausar';
+                
+                radarInterval = setInterval(() => {
+                    let next = currentFrameIndex + 1;
+                    if (next >= radarTileLayers.length) next = 0;
+                    showRadarFrame(next);
+                }, radarSpeedMs);
+            } else {
+                if (playIcon) playIcon.className = 'fa-solid fa-play';
+                if (playText) playText.innerText = 'Animar Radar';
+                clearInterval(radarInterval);
+            }
+        }
+
+        function changeRadarColorPalette(paletteId) {
+            selectedColorPalette = paletteId;
+            fetchRadarFrames();
+        }
+
+        function changeRadarOpacity(val) {
+            radarOpacity = parseFloat(val);
+            if (radarTileLayers[currentFrameIndex]) {
+                radarTileLayers[currentFrameIndex].setOpacity(radarOpacity);
+            }
+        }
+
+        function changeRadarSpeed(msVal) {
+            radarSpeedMs = parseInt(msVal, 10);
+            if (isRadarPlaying) {
+                toggleRadarPlay(); // Stop
+                toggleRadarPlay(); // Restart with new speed
+            }
+        }
+
+        function onRadarSliderChange(val) {
+            if (isRadarPlaying) toggleRadarPlay();
+            showRadarFrame(parseInt(val, 10));
+        }
+
+        function centerMapOn(cityId) {
+            const city = CITIES_DATA.find(c => c.id === cityId);
+            if (city && mainMap) {
+                mainMap.flyTo([city.lat, city.lng], 9, { duration: 1.5 });
+                if (mainMapMarkers[cityId]) {
+                    setTimeout(() => mainMapMarkers[cityId].openPopup(), 1200);
+                }
+            }
+        }
+
+        async function fetchCityWeather(lat, lng) {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,showers,weather_code,surface_pressure,wind_speed_10m,wind_gusts_10m`;
+            try {
+                const response = await fetch(url);
+                return await response.json();
+            } catch (error) {
+                console.error("Open-Meteo API error:", error);
+                return null;
+            }
+        }
+
+        function analyzeStormThreats(weatherData) {
+            if (!weatherData || !weatherData.current) {
+                return {
+                    rainAmount: 0,
+                    gusts: 0,
+                    hasRain: false,
+                    hasHail: false,
+                    hasLightning: false,
+                    riskLevel: 'BAIXO',
+                    advisory: 'Sem dados meteorológicos em tempo real no momento.'
+                };
+            }
+
+            const current = weatherData.current;
+            const code = current.weather_code || 0;
+            const precip = current.precipitation || 0;
+            const gusts = current.wind_gusts_10m || current.wind_speed_10m || 0;
+
+            let hasRain = precip > 0.0 || (code >= 51 && code <= 82);
+            let hasHail = code === 96 || code === 99 || (precip > 15.0 && gusts > 60);
+            let hasLightning = code === 95 || code === 96 || code === 99 || (gusts > 50 && precip > 8.0);
+
+            let riskLevel = 'BAIXO';
+            let advisory = 'Condições meteorológicas calmas e sem tempestades ativas na região.';
+
+            if (hasHail) {
+                riskLevel = 'CRÍTICO';
+                advisory = '⚠️ ALERTA DE TEMPESTADE DE GRANIZO DETECTADA! Risco de precipitação sólida e tempestades convectivas intensas na zona de Joinville/SC.';
+            } else if (hasLightning) {
+                riskLevel = 'ALTO';
+                advisory = '⚡ INCIDÊNCIA DE RAIOS E TROVOADAS REGISTRADAS! Recomenda-se cautela em áreas abertas e abrigo seguro.';
+            } else if (hasRain && precip > 10.0) {
+                riskLevel = 'MODERADO';
+                advisory = '🌧️ Chuva forte em andamento na área monitorada. Acompanhe acúmulo pluviométrico.';
+            } else if (hasRain) {
+                riskLevel = 'BAIXO';
+                advisory = '🌧️ Precipitação leve a moderada registrada nas últimas leituras.';
+            }
+
+            return {
+                rainAmount: precip,
+                gusts: gusts,
+                hasRain,
+                hasHail,
+                hasLightning,
+                riskLevel,
+                advisory
+            };
+        }
+
+        async function loadJoinvilleBannerWeather() {
+            const jvl = CITIES_DATA.find(c => c.id === 'joinville');
+            if (!jvl) return;
+
+            const weather = await fetchCityWeather(jvl.lat, jvl.lng);
+            if (!weather || !weather.current) return;
+
+            const cur = weather.current;
+            const tempElem = document.getElementById('jvlTemp');
+            const feelsElem = document.getElementById('jvlFeels');
+            const windElem = document.getElementById('jvlWind');
+            const precipElem = document.getElementById('jvlPrecip');
+
+            if (tempElem) tempElem.innerText = `${Math.round(cur.temperature_2m)} °C`;
+            if (feelsElem) feelsElem.innerText = `${Math.round(cur.apparent_temperature)} °C`;
+            if (windElem) windElem.innerText = `${Math.round(cur.wind_speed_10m)} km/h`;
+            if (precipElem) precipElem.innerText = `${cur.precipitation.toFixed(1)} mm`;
+
+            const threats = analyzeStormThreats(weather);
+            const badge = document.getElementById('jvlStormStatusBadge');
+            
+            if (badge) {
+                if (threats.riskLevel === 'CRÍTICO' || threats.riskLevel === 'ALTO') {
+                    badge.className = 'px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold border border-rose-500/40 flex items-center gap-1 storm-pulse';
+                    badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-400"></i> Alerta de Tempestade`;
+                } else if (threats.hasRain) {
+                    badge.className = 'px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/40 flex items-center gap-1';
+                    badge.innerHTML = `<i class="fa-solid fa-cloud-rain text-amber-300"></i> Chuva Ativa`;
+                } else {
+                    badge.className = 'px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30 flex items-center gap-1';
+                    badge.innerHTML = `<i class="fa-solid fa-shield-halved text-emerald-400"></i> Tempo Estável`;
+                }
+            }
+
+            // Sync Tab 3 Alerts Page
+            updateAlertsTabUI(threats);
+        }
+
+        function updateAlertsTabUI(threats) {
+            document.getElementById('tabRainValue').innerText = `${threats.rainAmount.toFixed(1)} mm/h`;
+            document.getElementById('tabRainStatusBadge').innerText = threats.hasRain ? 'Chuva Ativa' : 'Normal';
+            document.getElementById('tabRainStatusBadge').className = threats.hasRain ? 'px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold' : 'px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-bold';
+
+            document.getElementById('tabHailValue').innerText = threats.hasHail ? 'DETECTADO' : 'Ausente';
+            document.getElementById('tabHailValue').className = threats.hasHail ? 'text-3xl font-extrabold font-mono text-rose-500 animate-pulse' : 'text-3xl font-extrabold font-mono text-emerald-400';
+            document.getElementById('tabHailStatusBadge').innerText = threats.hasHail ? 'Risco Alto' : 'Nulo';
+            document.getElementById('tabHailStatusBadge').className = threats.hasHail ? 'px-2.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-bold' : 'px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold';
+
+            document.getElementById('tabLightningValue').innerText = threats.hasLightning ? `Rajadas ${Math.round(threats.gusts)} km/h` : '0 na região';
+            document.getElementById('tabLightningStatusBadge').innerText = threats.hasLightning ? 'Alerta Raios' : 'Normal';
+            document.getElementById('tabLightningStatusBadge').className = threats.hasLightning ? 'px-2.5 py-0.5 rounded-full bg-yellow-500 text-slate-950 text-[10px] font-bold' : 'px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold';
+
+            document.getElementById('tabAdvisoryFullText').innerText = `${threats.advisory} Telemetria de Joinville (SC) sincronizada com sucesso.`;
+        }
+
+        async function openCityModal(cityId) {
+            const city = CITIES_DATA.find(c => c.id === cityId);
+            if (!city) return;
+
+            currentModalCityId = cityId;
+
+            document.getElementById('modalFlag').innerText = city.flag;
+            document.getElementById('modalCityName').innerText = city.name;
+            document.getElementById('modalCountryContinent').innerText = `${city.country} • ${city.continent.toUpperCase()}`;
+            document.getElementById('modalMiniMapTitle').innerText = city.name;
+
+            const timeData = getTimeDataForZone(city.timezone);
+            document.getElementById('modalDigitalClock').innerText = timeData.digitalText;
+            document.getElementById('modalTimezoneOffset').innerText = `Fuso Horário: ${city.timezone} (${timeData.relOffsetStr})`;
+
+            const modalPinBtn = document.getElementById('modalPinBtn');
+            if (modalPinBtn) {
+                modalPinBtn.innerHTML = pinnedCities.includes(cityId) ? '<i class="fa-solid fa-star text-amber-400"></i>' : '<i class="fa-regular fa-star"></i>';
+            }
+
+            const modal = document.getElementById('cityDetailModal');
+            const container = document.getElementById('modalContainer');
+            if (modal && container) {
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                container.classList.remove('scale-95');
+            }
+
+            initModalMiniMap(city.lat, city.lng);
+
+            const weather = await fetchCityWeather(city.lat, city.lng);
+            if (weather && weather.current) {
+                const cur = weather.current;
+                document.getElementById('modalTemp').innerText = `${Math.round(cur.temperature_2m)} °C`;
+                document.getElementById('modalHumidity').innerText = `${cur.relative_humidity_2m} %`;
+                document.getElementById('modalWind').innerText = `${Math.round(cur.wind_speed_10m)} km/h`;
+                document.getElementById('modalPressure').innerText = `${Math.round(cur.surface_pressure)} hPa`;
+
+                const threats = analyzeStormThreats(weather);
+                renderStormPanel(threats, city.name);
+            }
+        }
+
+        function renderStormPanel(threats, cityName) {
+            const panel = document.getElementById('stormMonitorPanel');
+            const riskBadge = document.getElementById('stormRiskBadge');
+            const iconBox = document.getElementById('stormIconBox');
+            const mainIcon = document.getElementById('stormMainIcon');
+
+            const rainStatus = document.getElementById('rainStatusText');
+            if (rainStatus) {
+                rainStatus.innerText = threats.hasRain ? 'Chuva Ativa' : 'Sem Chuva';
+                rainStatus.className = threats.hasRain ? 'text-sm font-bold text-amber-300' : 'text-sm font-bold text-slate-200';
+            }
+            document.getElementById('rainDetailVal').innerText = `${threats.rainAmount.toFixed(1)} mm/h`;
+
+            const hailStatus = document.getElementById('hailStatusText');
+            if (hailStatus) {
+                hailStatus.innerText = threats.hasHail ? 'DETECTADO!' : 'Nenhum';
+                hailStatus.className = threats.hasHail ? 'text-sm font-bold text-rose-400 font-extrabold animate-pulse' : 'text-sm font-bold text-emerald-400';
+            }
+            document.getElementById('hailRiskLevel').innerText = threats.hasHail ? 'Risco Alto/Granizo' : 'Risco nulo';
+
+            const lightningStatus = document.getElementById('lightningStatusText');
+            if (lightningStatus) {
+                lightningStatus.innerText = threats.hasLightning ? 'INCIDÊNCIA!' : 'Ausente';
+                lightningStatus.className = threats.hasLightning ? 'text-sm font-bold text-yellow-400 font-extrabold' : 'text-sm font-bold text-emerald-400';
+            }
+            document.getElementById('lightningActivityVal').innerText = threats.hasLightning ? `Rajadas ${Math.round(threats.gusts)}km/h` : '0 descargas';
+
+            document.getElementById('stormAdvisoryText').innerText = threats.advisory;
+
+            if (panel && riskBadge && iconBox && mainIcon) {
+                if (threats.riskLevel === 'CRÍTICO' || threats.riskLevel === 'ALTO') {
+                    panel.className = 'p-5 rounded-2xl border transition-all duration-300 space-y-4 bg-gradient-to-r from-rose-950/80 to-slate-900 border-rose-500/60 storm-pulse';
+                    riskBadge.className = 'px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-rose-500 text-white shadow-lg shadow-rose-500/50';
+                    riskBadge.innerText = `RISCO ${threats.riskLevel}`;
+                    iconBox.className = 'p-2.5 rounded-xl text-white font-bold text-lg bg-rose-600';
+                    mainIcon.className = 'fa-solid fa-bolt-lightning';
+                } else if (threats.riskLevel === 'MODERADO') {
+                    panel.className = 'p-5 rounded-2xl border transition-all duration-300 space-y-4 bg-gradient-to-r from-amber-950/60 to-slate-900 border-amber-500/40';
+                    riskBadge.className = 'px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-amber-500 text-slate-950';
+                    riskBadge.innerText = 'RISCO MODERADO';
+                    iconBox.className = 'p-2.5 rounded-xl text-white font-bold text-lg bg-amber-600';
+                    mainIcon.className = 'fa-solid fa-cloud-showers-heavy';
+                } else {
+                    panel.className = 'p-5 rounded-2xl border transition-all duration-300 space-y-4 bg-slate-900/80 border-slate-800';
+                    riskBadge.className = 'px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                    riskBadge.innerText = 'BAIXO RISCO';
+                    iconBox.className = 'p-2.5 rounded-xl text-emerald-400 font-bold text-lg bg-slate-800';
+                    mainIcon.className = 'fa-solid fa-shield-halved';
+                }
+            }
+        }
+
+        function initModalMiniMap(lat, lng) {
+            if (modalMiniMap) {
+                modalMiniMap.remove();
+                modalMiniMap = null;
+            }
+
+            modalMiniMap = L.map('modalMiniMap', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([lat, lng], 9);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19
+            }).addTo(modalMiniMap);
+
+            L.circleMarker([lat, lng], {
+                radius: 8,
+                color: '#14b8a6',
+                fillColor: '#0d9488',
+                fillOpacity: 0.9
+            }).addTo(modalMiniMap);
+
+            if (radarTimestamps.length > 0 && radarTimestamps[currentFrameIndex]) {
+                const frame = radarTimestamps[currentFrameIndex];
+                L.tileLayer(`https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/2/1_1.png`, {
+                    opacity: 0.7,
+                    zIndex: 100
+                }).addTo(modalMiniMap);
+            }
+        }
+
+        function closeCityModal() {
+            const modal = document.getElementById('cityDetailModal');
+            const container = document.getElementById('modalContainer');
+            if (modal && container) {
+                modal.classList.add('opacity-0', 'pointer-events-none');
+                container.classList.add('scale-95');
+            }
+            currentModalCityId = null;
+        }
+
+        function toggleTimeFormat() {
+            is24HourFormat = !is24HourFormat;
+            const textElem = document.getElementById('formatText');
+            if (textElem) textElem.innerText = `Formato: ${is24HourFormat ? '24H' : '12H (AM/PM)'}`;
+            
+            const mobBtn = document.getElementById('toggleFormatBtnMobile');
+            if (mobBtn) mobBtn.innerText = is24HourFormat ? '24H' : '12H';
+
+            renderCitiesGrid();
+            tickClocks();
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            const icon = document.querySelector('#themeToggleBtn i');
+            if (icon) icon.className = isDark ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+        }
+
+        function setContinentFilter(filter) {
+            activeContinentFilter = filter;
+            document.querySelectorAll('.continent-btn').forEach(btn => {
+                if (btn.dataset.continent === filter) {
+                    btn.className = 'continent-btn active px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-teal-500 text-slate-950';
+                } else {
+                    btn.className = 'continent-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-slate-800 text-slate-300 hover:bg-slate-700';
+                }
+            });
+            renderCitiesGrid();
+        }
+
+        function filterCities() {
+            renderCitiesGrid();
+        }
+
+        function togglePinCity(cityId) {
+            if (pinnedCities.includes(cityId)) {
+                pinnedCities = pinnedCities.filter(id => id !== cityId);
+            } else {
+                pinnedCities.push(cityId);
+            }
+            localStorage.setItem('pinned_cities', JSON.stringify(pinnedCities));
+            renderCitiesGrid();
+        }
+
+        function togglePinCurrentModal() {
+            if (currentModalCityId) {
+                togglePinCity(currentModalCityId);
+                const modalPinBtn = document.getElementById('modalPinBtn');
+                if (modalPinBtn) {
+                    modalPinBtn.innerHTML = pinnedCities.includes(currentModalCityId) ? '<i class="fa-solid fa-star text-amber-400"></i>' : '<i class="fa-regular fa-star"></i>';
+                }
+            }
+        }
+
+        window.onload = function() {
+            // Register PWA Manifest and Service Worker dynamically for Play Store / Installation readiness
+            initPWA();
+
+            renderCitiesGrid();
+            loadJoinvilleBannerWeather();
+
+            setInterval(tickClocks, 1000);
+            tickClocks();
+
+            setInterval(loadJoinvilleBannerWeather, 120000);
+        };
+
+        function initPWA() {
+            // Generate dynamic Web App Manifest
+            const manifest = {
+                name: "Global Clock & Weather Radar Pro",
+                short_name: "Radar Joinville",
+                description: "Relógio Mundial & Radar Meteorológico HD ao Vivo",
+                start_url: "./",
+                display: "standalone",
+                background_color: "#0f172a",
+                theme_color: "#0f172a",
+                icons: [
+                    {
+                        src: "https://cdn-icons-png.flaticon.com/512/1163/1163661.png",
+                        sizes: "512x512",
+                        type: "image/png",
+                        purpose: "any maskable"
+                    }
+                ]
+            };
+
+            const stringManifest = JSON.stringify(manifest);
+            const blobManifest = new Blob([stringManifest], { type: 'application/json' });
+            const manifestURL = URL.createObjectURL(blobManifest);
+            
+            const manifestLink = document.createElement('link');
+            manifestLink.rel = 'manifest';
+            manifestLink.href = manifestURL;
+            document.head.appendChild(manifestLink);
+
+            // Register Basic Service Worker for PWA compliance
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    self.addEventListener('install', e => e.waitUntil(self.skipWaiting()));
+                    self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+                    self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response('Offline'))));
+                `;
+                const blobSW = new Blob([swCode], { type: 'application/javascript' });
+                const swUrl = URL.createObjectURL(blobSW);
+                navigator.serviceWorker.register(swUrl).catch(err => console.log('PWA SW Note:', err));
+            }
+        }
+    </script>
+</body>
+</html>
